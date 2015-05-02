@@ -126,17 +126,10 @@ func manageMake(goal string, ready chan os.Signal) {
 			startTime = time.Now()
 
 		case err := <-makeCmd.Finished():
-			// Command finished, check the exit status.
+			// Command finished.
 			if err != nil {
-				// Assume that an error exit status means it should be
-				// run again. Stop monitoring so it can start over.
 				log.Printf(red("Remake %s: %s"), err, makeCmd.String())
-				time.Sleep(exitErrorSleep)
-				// Return so it can run the command again.
-				return
 			}
-			// Assume that a successful exit means it doesn't
-			// need to run again until a dependency changes.
 			graceMode = false
 			running = false
 

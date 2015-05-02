@@ -10,15 +10,11 @@ then press Ctrl+C, Up, Enter after making changes!
 ## What does Remake do?
 
 In basically runs `make [target]` and then watches for changes.
-There are 3 scenarios:
+There are 2 scenarios:
 
-1. The make command exits successfully (zero exit status)
+1. The make command exits quickly
 
     Next time you make changes, Remake will run the command again.
-
-1. The make command exits with an error (non-zero exit status)
-
-    After a short delay, Remake will run the command again.
 
 1. The make command is a long-running process
 
