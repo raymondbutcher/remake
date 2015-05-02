@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -16,6 +17,7 @@ const (
 var (
 	gracePeriod time.Duration
 	readyMode   bool
+	buildMutex  sync.Mutex
 )
 
 func main() {
@@ -86,6 +88,20 @@ func remake(goal string, ready chan os.Signal) {
 // manageMake runs a make command, watches for changes, and kills the command
 // if/when changes are found. It returns only when it should be started again.
 func manageMake(goal string, ready chan os.Signal) {
+	// Prevent multiple make commands from starting up at the same time.
+	// Otherwise, separate make commands with shared dependencies could
+	// build the same targets at the same time. This lock will last until
+	// either the command exits, or it leaves grace mode and starts the
+	// normal monitoring behavior.
+	buildMutex.Lock()
+	locked := true
+	unlock := func() {
+		if locked {
+			buildMutex.Unlock()
+			locked = false
+		}
+	}
+	defer unlock()
 
 	// Keep track of when the make command was run. This will be changed
 	// to be just after the grace mode finishes, if the command doesn't
@@ -113,25 +129,29 @@ func manageMake(goal string, ready chan os.Signal) {
 	query := NewQuery(goal)
 
 	// Run in grace mode at first.
+	running := true
 	graceMode := true
 	graceModeEnd := time.After(gracePeriod)
-	running := true
+	leaveGraceMode := func() {
+		graceMode = false
+		unlock()
+	}
 
 	// Start monitoring.
 	for {
 		select {
 		case <-ready:
-			// Ready signal received, exit grace mode.
-			graceMode = false
+			// Ready signal received.
 			startTime = time.Now()
+			leaveGraceMode()
 
 		case err := <-makeCmd.Finished():
 			// Command finished.
 			if err != nil {
 				log.Printf(red("Remake %s: %s"), err, makeCmd.String())
 			}
-			graceMode = false
 			running = false
+			leaveGraceMode()
 
 		case <-time.After(checkInterval):
 			// Regularly check for changes.
@@ -149,7 +169,7 @@ func manageMake(goal string, ready chan os.Signal) {
 				} else {
 					// Everything is up to date, so it must be ready to
 					// leave grace mode and start monitoring normally.
-					graceMode = false
+					leaveGraceMode()
 				}
 			} else if changed {
 				// Detected changes outside of grace mode.
