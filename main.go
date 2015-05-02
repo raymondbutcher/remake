@@ -19,11 +19,22 @@ var (
 )
 
 func main() {
-
-	flag.BoolVar(&readyMode, "ready", false, "Send a ready signal and then quit")
-	flag.DurationVar(&gracePeriod, "grace", 10*time.Second, "Grace period for a command to start up")
+	// Parse the command line arguments.
+	flag.BoolVar(
+		&readyMode,
+		"ready",
+		false,
+		"Send a ready signal and then quit",
+	)
+	flag.DurationVar(
+		&gracePeriod,
+		"grace",
+		10*time.Second,
+		"Grace period for a command to start up",
+	)
 	flag.Parse()
 
+	// If "remake -ready" was run, send the ready signal and then exit.
 	if readyMode {
 		err := SendReadySignal()
 		if err != nil {
@@ -32,8 +43,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Handle when there is no target in the command line arguments. Like Make,
-	// this will work with the default target when no target is specified.
+	// Handle when there is no target in the command line arguments.
+	// Remake will use the default target if no target is specified.
 	goals := flag.Args()
 	if len(goals) == 0 {
 		goals = append(goals, "")
@@ -53,7 +64,7 @@ func main() {
 		ready = make(chan os.Signal)
 	}
 
-	// And so it begins.
+	// And so it begins. Start one goroutine per goal.
 	for _, goal := range goals {
 		go remake(goal, ready)
 	}
@@ -65,13 +76,15 @@ func main() {
 
 // remake runs the main loop for one make command.
 func remake(goal string, ready chan os.Signal) {
+	// Use an infinite loop. The manageMake starts a make command, and
+	// will only return when it needs to be started again, for any reason.
 	for {
 		manageMake(goal, ready)
 	}
 }
 
-// manageMake runs a make command, watches for changes,
-// and restarts the command when changes are found.
+// manageMake runs a make command, watches for changes, and kills the command
+// if/when changes are found. It returns only when it should be started again.
 func manageMake(goal string, ready chan os.Signal) {
 
 	// Keep track of when the make command was run. This will be changed
@@ -92,7 +105,7 @@ func manageMake(goal string, ready chan os.Signal) {
 		// It failed to start.
 		log.Printf(red("Remake: %s: %s"), makeCmd.String(), err)
 		time.Sleep(remakeErrorSleep)
-		// Return so it can run the command again.
+		// Return so it will try to run the command again.
 		return
 	}
 
@@ -163,7 +176,10 @@ func manageMake(goal string, ready chan os.Signal) {
 				// files rapidly. The "remake --ready" command was created
 				// to avoid this, and it should not allow this to happen
 				// unless builds actually take this long to finish running.
-				log.Printf(red("Remake initializing for too long: %s"), makeCmd.String())
+				log.Printf(
+					red("Remake initializing for too long: %s"),
+					makeCmd.String(),
+				)
 				makeCmd.Kill()
 				// Return so it can run the command again.
 				return
@@ -172,7 +188,7 @@ func manageMake(goal string, ready chan os.Signal) {
 	}
 }
 
-// Red makes text red.
+// red makes text red.
 func red(s string) string {
 	const (
 		redColor   = "\033[0;31m"
