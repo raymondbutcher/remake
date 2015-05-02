@@ -1,8 +1,8 @@
 # Remake
 
-Remake is a very simple tool for running Make commands automatically, whenever
-they should. Use `remake [target]` instead of the usual `make [target]` and
-it will automatically run the command every time changes are made.
+Remake is a very simple tool for running Make commands automatically.
+Use `remake [target]` instead of the usual `make [target]` and it will
+automatically run the command each time changes are made.
 
 Gone are the days where you have to switch to a terminal and
 then press Ctrl+C, Up, Enter after making changes!
