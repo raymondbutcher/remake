@@ -1,4 +1,4 @@
-package main
+package makecmd
 
 import (
 	"fmt"
@@ -8,10 +8,10 @@ import (
 	"sync"
 )
 
-// Cmd is a wrapper for exec.Cmd, adding channels
-// and methods to help monitor and manage it.
-type Cmd struct {
-	Cmd          *exec.Cmd
+// CmdProcess is a wrapper for exec.Cmd that helps to manage
+// and monitor its running process.
+type CmdProcess struct {
+	cmd          *exec.Cmd
 	exitChannel  chan error
 	exitWait     sync.WaitGroup
 	running      bool
@@ -19,13 +19,13 @@ type Cmd struct {
 }
 
 // Start the command process and a goroutine to help manage it.
-func (c *Cmd) Start() error {
+func (c *CmdProcess) Start() error {
 	c.runningMutex.Lock()
 	defer c.runningMutex.Unlock()
 
 	c.exitWait.Add(1)
 
-	if err := c.Cmd.Start(); err != nil {
+	if err := c.cmd.Start(); err != nil {
 		return err
 	}
 
@@ -34,7 +34,7 @@ func (c *Cmd) Start() error {
 	// Use a goroutine to wait for the process to exit,
 	// and then send the exit status to the exit channel.
 	go func() {
-		err := c.Cmd.Wait()
+		err := c.cmd.Wait()
 		c.exitWait.Done()
 		c.runningMutex.Lock()
 		defer c.runningMutex.Unlock()
@@ -46,26 +46,26 @@ func (c *Cmd) Start() error {
 }
 
 // Finished returns a channel that can receive an exit error, indicating
-// that it has exited. A nil error means it exited without error.
-func (c *Cmd) Finished() chan error {
+// that it has exited. A nil error means that it exited without error.
+func (c *CmdProcess) Finished() chan error {
 	return c.exitChannel
 }
 
-// IsRunning returns whether the command is running at this point in time.
-func (c *Cmd) IsRunning() bool {
+// IsRunning returns whether the process is running at this point in time.
+func (c *CmdProcess) IsRunning() bool {
 	c.runningMutex.Lock()
 	defer c.runningMutex.Unlock()
 	return c.running
 }
 
-// Kill the command and wait for it to finish.
-func (c *Cmd) Kill() error {
+// Kill the process and wait for it to finish.
+func (c *CmdProcess) Kill() error {
 	if !c.IsRunning() {
 		return nil
 	}
 	// Operating system specific here. This kills the process and its
 	// children. Process.Kill() leaves child processes running on OSX.
-	pid := fmt.Sprintf("%d", c.Cmd.Process.Pid)
+	pid := fmt.Sprintf("%d", c.cmd.Process.Pid)
 	kill := exec.Command("kill", pid)
 	kill.Stdout = os.Stdout
 	kill.Stderr = os.Stderr
@@ -77,17 +77,17 @@ func (c *Cmd) Kill() error {
 }
 
 // String returns the underlying command that gets run.
-func (c *Cmd) String() string {
-	return strings.Join(c.Cmd.Args, " ")
+func (c *CmdProcess) String() string {
+	return strings.Join(c.cmd.Args, " ")
 }
 
-// NewCommand creates and returns a Cmd.
-func NewCommand(name string, args ...string) *Cmd {
-	c := exec.Command(name, args...)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	return &Cmd{
-		Cmd:         c,
+// NewCmdProcess initializes a command process.
+func NewCmdProcess(name string, args ...string) *CmdProcess {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return &CmdProcess{
+		cmd:         cmd,
 		exitChannel: make(chan error),
 		exitWait:    sync.WaitGroup{},
 	}

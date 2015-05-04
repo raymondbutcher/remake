@@ -1,4 +1,4 @@
-package main
+package makecmd
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetFiles(t *testing.T) {
-	cmd := MakeCommand{
+	cmd := Cmd{
 		db: &makedb.Database{
 			DefaultGoal: "t1",
 			Targets: map[string]*makedb.Target{

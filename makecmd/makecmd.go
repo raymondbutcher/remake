@@ -1,19 +1,18 @@
-package main
+package makecmd
 
 import (
 	"bytes"
-	"log"
 	"os/exec"
 	"time"
 
 	"github.com/raymondbutcher/remake/makedb"
 )
 
-// MakeCommand is used to manage a make command, its running process,
-// and checking if it is up to date.
-type MakeCommand struct {
+// Cmd is used to manage a make command, its running process,
+// and to check if its target is up to date.
+type Cmd struct {
 	Target      string
-	cmd         *Cmd
+	cmd         *CmdProcess
 	cmdArgs     []string
 	queryArgs   []string
 	db          *makedb.Database
@@ -22,9 +21,9 @@ type MakeCommand struct {
 	usedChanged bool
 }
 
-// NewMakeCommand initializes a make command.
-func NewMakeCommand(target string) *MakeCommand {
-	mc := MakeCommand{
+// NewCmd initializes a make command.
+func NewCmd(target string) *Cmd {
+	mc := Cmd{
 		cmdArgs: []string{
 			"--warn-undefined-variables",
 		},
@@ -42,8 +41,8 @@ func NewMakeCommand(target string) *MakeCommand {
 	return &mc
 }
 
-// GetFiles gets the filenames of the target and its dependencies.
-func (mc *MakeCommand) GetFiles() (names []string) {
+// GetFiles gets the filenames of the command's target and its dependencies.
+func (mc *Cmd) GetFiles() (names []string) {
 	// Use the last known database to avoid running make again.
 	if mc.db == nil {
 		mc.db = mc.getDatabase()
@@ -66,17 +65,18 @@ func (mc *MakeCommand) GetFiles() (names []string) {
 }
 
 // Finished returns a channel that can receive an exit error, indicating
-// that it has exited. A nil error means it exited without error.
-func (mc *MakeCommand) Finished() chan error {
+// that the make command process has exited. A nil error means it exited
+// without error.
+func (mc *Cmd) Finished() chan error {
 	return mc.cmd.Finished()
 }
 
-// HasChanged checks if the make target has changed since Progress was
-// last called. It is subtle, but Progress should be used during "grace
+// HasChanged checks if the make command's target has changed since Progress()
+// was last called. It is subtle, but Progress should be used during "grace
 // mode" to find out when the make command has finished building itself
 // and its dependencies. Afterwards, HasChanged should be used to check
 // if the command should be restarted due to new changes.
-func (mc *MakeCommand) HasChanged() bool {
+func (mc *Cmd) HasChanged() bool {
 
 	if mc.progressed.IsZero() {
 		panic("Cannot use HasChanged before UpdateProgress")
@@ -133,20 +133,13 @@ func (mc *MakeCommand) HasChanged() bool {
 }
 
 // Kill the command and wait for it to finish.
-func (mc *MakeCommand) Kill() {
-	for {
-		if err := mc.cmd.Kill(); err != nil {
-			log.Printf(red("Remake: Error killing %s: %s"), mc.String(), err)
-			time.Sleep(1 * time.Second)
-		} else {
-			return
-		}
-	}
+func (mc *Cmd) Kill() error {
+	return mc.cmd.Kill()
 }
 
-// UpdateProgress checks how many targets need updating and stores it.
-// It also updates the internal time used by HasChanged.
-func (mc *MakeCommand) UpdateProgress() {
+// UpdateProgress checks how many targets need updating, and stores
+// the result. It also updates the internal time to be used by HasChanged.
+func (mc *Cmd) UpdateProgress() {
 	if mc.usedChanged {
 		panic("Cannot use UpdateProgress after HasChanged")
 	}
@@ -158,24 +151,24 @@ func (mc *MakeCommand) UpdateProgress() {
 // is used during grace mode to check if a make command is making progress
 // with building its dependencies. Always use UpdateProgress before using
 // CheckProgress. They are separate methods only for clarity of purpose.
-func (mc *MakeCommand) CheckProgress() (remaining int) {
+func (mc *Cmd) CheckProgress() (remaining int) {
 	return mc.remaining
 }
 
-// Start the make command.
-func (mc *MakeCommand) Start() error {
-	mc.cmd = NewCommand("make", mc.cmdArgs...)
+// Start the make command process.
+func (mc *Cmd) Start() error {
+	mc.cmd = NewCmdProcess("make", mc.cmdArgs...)
 	return mc.cmd.Start()
 }
 
 // String returns the underlying make command that gets run.
-func (mc *MakeCommand) String() string {
+func (mc *Cmd) String() string {
 	return mc.cmd.String()
 }
 
-// getDatabase runs the make query for this make target
-// and populates a new database with the results.
-func (mc *MakeCommand) getDatabase() *makedb.Database {
+// getDatabase runs the make query for this make command's
+// target, and populates a new database with the results.
+func (mc *Cmd) getDatabase() *makedb.Database {
 	cmd := exec.Command("make", mc.queryArgs...)
 	out, _ := cmd.Output()
 	r := bytes.NewReader(out)
@@ -190,7 +183,7 @@ func (mc *MakeCommand) getDatabase() *makedb.Database {
 
 // getRemaining counts how many targets need to be updated
 // for this make command's target to be considered up to date.
-func (mc *MakeCommand) getRemaining() (count int) {
+func (mc *Cmd) getRemaining() (count int) {
 	db := mc.getDatabase()
 	t := db.GetTarget(mc.Target)
 	if !t.Phony {

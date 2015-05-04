@@ -3,18 +3,23 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/raymondbutcher/remake/watcher"
+	"github.com/raymondbutcher/remake/fswatch"
+	"github.com/raymondbutcher/remake/makecmd"
 )
 
+// progressCheck is used to keep track of the make command's
+// build progress when running in grace mode.
 type progressChecker struct {
-	cmd       *MakeCommand
+	cmd       *makecmd.Cmd
 	stalled   <-chan time.Time
 	remaining int
 }
 
-func newProgressChecker(cmd *MakeCommand) progressChecker {
+func newProgressChecker(cmd *makecmd.Cmd) progressChecker {
 	return progressChecker{
 		cmd:     cmd,
 		stalled: time.After(gracePeriod),
@@ -40,7 +45,7 @@ func (pc progressChecker) extend() {
 
 // GraceMode monitors the make command as it starts up, waiting for it to
 // finish updating.
-func GraceMode(cmd *MakeCommand, ready <-chan bool, wc *watcher.Client) error {
+func GraceMode(cmd *makecmd.Cmd, ready <-chan bool, watcher *fswatch.Client) error {
 	// Keep track of whether the make command is making progress, or if it
 	// seems to be doing nothing. If there is no discernable progress for
 	// a length of time exceeding the grace period, then the command will
@@ -56,7 +61,7 @@ func GraceMode(cmd *MakeCommand, ready <-chan bool, wc *watcher.Client) error {
 	pollCheck, pollStop := makePollChannel()
 	defer pollStop()
 
-	watchCheck := makeWatchChannel(wc)
+	watchCheck := makeWatchChannel(watcher)
 
 	check := make(chan bool, 1)
 
@@ -91,7 +96,7 @@ func GraceMode(cmd *MakeCommand, ready <-chan bool, wc *watcher.Client) error {
 			if done, _ := progress.check(); done {
 				return nil
 			}
-			updateWatchedFiles(wc, cmd)
+			updateWatchedFiles(watcher, cmd)
 
 		case <-progress.stalled:
 			// No progress has been made for some time.
@@ -101,7 +106,7 @@ func GraceMode(cmd *MakeCommand, ready <-chan bool, wc *watcher.Client) error {
 			} else if progressed {
 				continue
 			}
-			cmd.Kill()
+			kill(cmd)
 			return fmt.Errorf("Grace period exceeded: %s", cmd)
 		}
 	}
@@ -110,13 +115,13 @@ func GraceMode(cmd *MakeCommand, ready <-chan bool, wc *watcher.Client) error {
 // MonitorMode monitors the make command's target to see if it needs updating.
 // If it does, and the command is still running, then it will kill the command.
 // It will not return until it needs updating and it is not running.
-func MonitorMode(cmd *MakeCommand, wc *watcher.Client) {
+func MonitorMode(cmd *makecmd.Cmd, watcher *fswatch.Client) {
 
 	pollCheck, pollStop := makePollChannel()
 	defer pollStop()
 
-	watchCheck := makeWatchChannel(wc)
-	updateWatchedFiles(wc, cmd)
+	watchCheck := makeWatchChannel(watcher)
+	updateWatchedFiles(watcher, cmd)
 
 	check := make(chan bool, 1)
 
@@ -140,10 +145,49 @@ func MonitorMode(cmd *MakeCommand, wc *watcher.Client) {
 				// The make target is no longer up to date. Kill the process
 				// if it is still running, and then return so the make command
 				// can be started again.
-				cmd.Kill()
+				kill(cmd)
 				return
 			}
-			updateWatchedFiles(wc, cmd)
+			updateWatchedFiles(watcher, cmd)
+		}
+	}
+}
+
+// kill a make command and wait for it to finish.
+// It will keep trying if there is an error.
+func kill(cmd *makecmd.Cmd) {
+	for {
+		if err := cmd.Kill(); err != nil {
+			log.Printf(red("Remake: Error killing %s: %s"), cmd, err)
+			time.Sleep(1 * time.Second)
+		} else {
+			return
+		}
+	}
+}
+
+// updateWatchedFiles adds the make command's target files to the watcher.
+// This is called regularly to ensure it stays up to date (e.g a makefile
+// could have wildcards that find new files). If -watch is not enabled,
+// this does nothing.
+func updateWatchedFiles(watcherClient *fswatch.Client, cmd *makecmd.Cmd) {
+	if watcherClient != nil {
+		// Add directories rather than files. This helps to catch makefile
+		// targets with wildcards and "find" shell commands. The fsnotify
+		// library does not support recursive watching, and I have hit open
+		// file limits doing that manually, but this approach will probably
+		// work adequately.
+		dirs := map[string]bool{}
+		for _, name := range cmd.GetFiles() {
+			if fi, err := os.Stat(name); err == nil && !fi.IsDir() {
+				name = filepath.Dir(name)
+			}
+			if _, seen := dirs[name]; !seen {
+				dirs[name] = true
+				if err := watcherClient.Watcher.Add(name); err != nil {
+					log.Printf(yellow("Error watching directory '%s': %s"), name, err)
+				}
+			}
 		}
 	}
 }

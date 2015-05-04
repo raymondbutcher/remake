@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/raymondbutcher/remake/watcher"
+	"github.com/raymondbutcher/remake/fswatch"
 )
 
 // makeReadyChannel returns a channel for receiving the ready signal. If there
@@ -44,13 +44,13 @@ func makePollChannel() (ch <-chan time.Time, stop func()) {
 }
 
 // makeWatcher sets up and returns a SharedWatcher if -watch is enabled.
-func makeWatcher() (w *watcher.SharedWatcher) {
+func makeWatcher() (watcher *fswatch.SharedWatcher) {
 	if watchDebounce > 0 {
-		w = watcher.NewSharedWatcher(watchDebounce)
-		w.Start()
+		watcher = fswatch.NewSharedWatcher(watchDebounce)
+		watcher.Start()
 		go func() {
 			for {
-				err := <-w.Errors
+				err := <-watcher.Errors
 				log.Printf(red("Watcher error: %s"), err)
 			}
 		}()
@@ -60,11 +60,11 @@ func makeWatcher() (w *watcher.SharedWatcher) {
 
 // makeWatchChannel returns a channel for receiving filesystem events.
 // If -watch is not enabled, a dummy channel is returned.
-func makeWatchChannel(wc *watcher.Client) (ch <-chan bool) {
-	if wc == nil {
+func makeWatchChannel(watcher *fswatch.Client) (ch <-chan bool) {
+	if watcher == nil {
 		ch = make(chan bool)
 	} else {
-		ch = wc.Events
+		ch = watcher.Events
 	}
 	return
 }

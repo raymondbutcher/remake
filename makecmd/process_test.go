@@ -1,17 +1,17 @@
-package main
+package makecmd
 
 import "testing"
 
-func ExampleCmd() {
-	cmd := NewCommand("echo", "hello from echo")
+func ExampleCmdProcess() {
+	cmd := NewCmdProcess("echo", "hello from echo")
 	cmd.Start()
 	<-cmd.Finished()
 	// Output: hello from echo
 }
 
-func TestCmd(t *testing.T) {
+func TestCmdProcess(t *testing.T) {
 	// Start a long-running process and then kill it.
-	cmd := NewCommand("sleep", "10")
+	cmd := NewCmdProcess("sleep", "10")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Could not start command: %s", err)
 	}

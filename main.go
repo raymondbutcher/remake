@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/raymondbutcher/remake/watcher"
+	"github.com/raymondbutcher/remake/fswatch"
+	"github.com/raymondbutcher/remake/makecmd"
 )
 
 const (
@@ -48,17 +48,17 @@ func main() {
 }
 
 // remake runs the main loop for one make command.
-func remake(target string, ready <-chan bool, w *watcher.SharedWatcher) {
+func remake(target string, ready <-chan bool, watcher *fswatch.SharedWatcher) {
 	var (
-		cmd *MakeCommand
-		err error
-		wc  *watcher.Client
+		cmd           *makecmd.Cmd
+		err           error
+		watcherClient *fswatch.Client
 	)
-	if w != nil {
-		wc = w.NewClient()
+	if watcher != nil {
+		watcherClient = watcher.NewClient()
 	}
 	for {
-		cmd = NewMakeCommand(target)
+		cmd = makecmd.NewCmd(target)
 
 		// Start the command and run in grace mode. Use a lock to prevent
 		// multiple make commands starting up at the same time. Otherwise,
@@ -67,41 +67,15 @@ func remake(target string, ready <-chan bool, w *watcher.SharedWatcher) {
 		buildMutex.Lock()
 		err = cmd.Start()
 		if err == nil {
-			err = GraceMode(cmd, ready, wc)
+			err = GraceMode(cmd, ready, watcherClient)
 		}
 		buildMutex.Unlock()
 
 		if err == nil {
-			MonitorMode(cmd, wc)
+			MonitorMode(cmd, watcherClient)
 		} else {
 			log.Printf(red("Remake: %s"), err)
 			time.Sleep(remakeErrorSleep)
-		}
-	}
-}
-
-// updateWatchedFiles adds the make command's target files to the watcher.
-// This is called regularly to ensure it stays up to date (e.g a makefile
-// could have wildcards that find new files). If -watch is not enabled,
-// this does nothing.
-func updateWatchedFiles(wc *watcher.Client, cmd *MakeCommand) {
-	if wc != nil {
-		// Add directories rather than files. This helps to catch makefile
-		// targets with wildcards and "find" shell commands. The fsnotify
-		// library does not support recursive watching, and I have hit open
-		// file limits doing that manually, but this approach will probably
-		// work adequately.
-		dirs := map[string]bool{}
-		for _, name := range cmd.GetFiles() {
-			if fi, err := os.Stat(name); err == nil && !fi.IsDir() {
-				name = filepath.Dir(name)
-			}
-			if _, seen := dirs[name]; !seen {
-				dirs[name] = true
-				if err := wc.Watcher.Add(name); err != nil {
-					log.Printf(yellow("Error watching directory '%s': %s"), name, err)
-				}
-			}
 		}
 	}
 }
