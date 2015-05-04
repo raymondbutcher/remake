@@ -55,7 +55,7 @@ func remake(target string, ready <-chan bool, w *watcher.SharedWatcher) {
 		wc  *watcher.Client
 	)
 	if w != nil {
-		wc = w.Client()
+		wc = w.NewClient()
 	}
 	for {
 		cmd = NewMakeCommand(target)

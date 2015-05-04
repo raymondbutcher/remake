@@ -47,6 +47,7 @@ func makePollChannel() (ch <-chan time.Time, stop func()) {
 func makeWatcher() (w *watcher.SharedWatcher) {
 	if watchDebounce > 0 {
 		w = watcher.NewSharedWatcher(watchDebounce)
+		w.Start()
 		go func() {
 			for {
 				err := <-w.Errors
