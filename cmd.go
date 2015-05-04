@@ -11,13 +11,17 @@ import (
 // Cmd is a wrapper for exec.Cmd, adding channels
 // and methods to help monitor and manage it.
 type Cmd struct {
-	Cmd         *exec.Cmd
-	exitChannel chan error
-	exitWait    sync.WaitGroup
+	Cmd          *exec.Cmd
+	exitChannel  chan error
+	exitWait     sync.WaitGroup
+	running      bool
+	runningMutex sync.Mutex
 }
 
 // Start the command process and a goroutine to help manage it.
 func (c *Cmd) Start() error {
+	c.runningMutex.Lock()
+	defer c.runningMutex.Unlock()
 
 	c.exitWait.Add(1)
 
@@ -25,11 +29,16 @@ func (c *Cmd) Start() error {
 		return err
 	}
 
+	c.running = true
+
 	// Use a goroutine to wait for the process to exit,
 	// and then send the exit status to the exit channel.
 	go func() {
 		err := c.Cmd.Wait()
 		c.exitWait.Done()
+		c.runningMutex.Lock()
+		defer c.runningMutex.Unlock()
+		c.running = false
 		c.exitChannel <- err
 	}()
 
@@ -42,22 +51,32 @@ func (c *Cmd) Finished() chan error {
 	return c.exitChannel
 }
 
+// IsRunning returns whether the command is running at this point in time.
+func (c *Cmd) IsRunning() bool {
+	c.runningMutex.Lock()
+	defer c.runningMutex.Unlock()
+	return c.running
+}
+
 // Kill the command and wait for it to finish.
 func (c *Cmd) Kill() error {
+	if !c.IsRunning() {
+		return nil
+	}
 	// Operating system specific here. This kills the process and its
 	// children. Process.Kill() leaves child processes running on OSX.
 	pid := fmt.Sprintf("%d", c.Cmd.Process.Pid)
 	kill := exec.Command("kill", pid)
 	kill.Stdout = os.Stdout
 	kill.Stderr = os.Stderr
-	if err := kill.Run(); err != nil {
-		return err
+	err := kill.Run()
+	if err == nil {
+		c.exitWait.Wait()
 	}
-	c.exitWait.Wait()
-	return nil
+	return err
 }
 
-// String returns the underlying command.
+// String returns the underlying command that gets run.
 func (c *Cmd) String() string {
 	return strings.Join(c.Cmd.Args, " ")
 }

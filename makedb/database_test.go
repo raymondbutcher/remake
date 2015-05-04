@@ -1,4 +1,4 @@
-package main
+package makedb
 
 import (
 	"bytes"
@@ -65,28 +65,50 @@ func getDatabase() Database {
 	return db
 }
 
+func query(db Database, targetName string) (ok bool) {
+	if t := db.GetTarget(targetName); !t.Phony {
+		if t.DoesNotExist || t.NeedsUpdate {
+			return false
+		}
+	}
+	nDeps, oDeps := db.GetDeps(targetName)
+	for _, name := range nDeps {
+		t := db.GetTarget(name)
+		if t.DoesNotExist || t.NeedsUpdate {
+			return false
+		}
+	}
+	for _, name := range oDeps {
+		t := db.GetTarget(name)
+		if t.DoesNotExist {
+			return false
+		}
+	}
+	return true
+}
+
 func targetIsMissing(db Database, t *Target) bool {
 	// Target does not exist, needs update.
-	ok := db.Query(t.Name, time.Now())
+	ok := query(db, t.Name)
 	return !ok && t.DoesNotExist && t.NeedsUpdate
 }
 
 func targetNeedsUpdate(db Database, t *Target) bool {
 	// Target exists, needs update due to dependency.
-	ok := db.Query(t.Name, time.Now())
+	ok := query(db, t.Name)
 	return !ok && !t.DoesNotExist && t.NeedsUpdate
 }
 
 func targetNotChecked(db Database, t *Target) bool {
 	// Target was not checked because another dependency needs updating.
 	// Target exists, is up to date.
-	ok := db.Query(t.Name, time.Now())
+	ok := query(db, t.Name)
 	return ok && !t.DoesNotExist && !t.NeedsUpdate
 }
 
 func targetOK(db Database, t *Target) bool {
 	// Target exists, needs update due to dependency.
-	ok := db.Query(t.Name, time.Now())
+	ok := query(db, t.Name)
 	return ok && !t.DoesNotExist && !t.NeedsUpdate
 }
 
@@ -97,7 +119,7 @@ func (a TargetAssertions) Check() error {
 	for name, checkFunc := range a {
 		t := db.Targets[name]
 		if !checkFunc(db, t) {
-			ok := db.Query(name, time.Now())
+			ok := query(db, t.Name)
 			return fmt.Errorf(
 				"\nTarget: %s\nOK: %v\nDoesNotExist: %v\nNeedsUpdate: %v",
 				t.Name, ok, t.DoesNotExist, t.NeedsUpdate,
