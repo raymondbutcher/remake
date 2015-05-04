@@ -129,13 +129,19 @@ func (a TargetAssertions) Check() error {
 	return nil
 }
 
+// TestMakeFileTargets is an integration test to see exactly what running
+// "make --question --print-data-base" does in various states, and also to
+// ensure that the parsing and population code is reading it correctly.
+// In particular, the make command will not check dependencies which
+// are of no consequence (due to earlier dependencies needing to be
+// updated) and that results in incorrect data. But that is of no
+// consequence as long as it is understood.
 func TestMakeFileTargets(t *testing.T) {
 	clearTestFiles()
 	defer clearTestFiles()
 
 	// Every target is missing, except for f4, which doesn't get checked.
 	// That is because f1 requires f2 which requires f3 and f4.
-	// When f3 is found to be missing, there is no need to check f4.
 
 	tests := TargetAssertions{
 		"f1": targetIsMissing,
