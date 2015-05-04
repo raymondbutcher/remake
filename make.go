@@ -48,19 +48,19 @@ func (mc *MakeCommand) GetFiles() (names []string) {
 	if mc.db == nil {
 		mc.db = mc.getDatabase()
 	}
-	add := func(name string) {
-		t := mc.db.GetTarget(name)
+	add := func(t *makedb.Target) {
 		if !t.Phony {
-			names = append(names, name)
+			names = append(names, t.Name)
 		}
 	}
-	add(mc.Target)
-	nDeps, oDeps := mc.db.GetDeps(mc.Target)
+	t := mc.db.GetTarget(mc.Target)
+	add(t)
+	nDeps, oDeps := mc.db.GetDeps(t.Name)
 	for _, name := range nDeps {
-		add(name)
+		add(mc.db.GetTarget(name))
 	}
 	for _, name := range oDeps {
-		add(name)
+		add(mc.db.GetTarget(name))
 	}
 	return
 }
