@@ -1,4 +1,4 @@
-SRC_FILES:=$(wildcard *.go)
+SRC_FILES:=$(shell find . -type f -path '*.go')
 
 .PHONY: clean slow test testv
 
