@@ -1,4 +1,4 @@
-package uqueue
+package makedb
 
 // UniqueQueue is a FIFO queue of unique strings.
 type UniqueQueue struct {

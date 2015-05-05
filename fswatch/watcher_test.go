@@ -34,10 +34,10 @@ func TestClientNotify(t *testing.T) {
 	// after the debounce delay.
 	notify <- time.Time{}
 
-	if !clientHasOneEvent(c1) {
+	if !clientHasOne(c1) {
 		t.Fatalf("client 1 did not get exactly one event")
 	}
-	if !clientHasOneEvent(c2) {
+	if !clientHasOne(c2) {
 		t.Fatalf("client 2 did not get exactly one event")
 	}
 
@@ -48,10 +48,10 @@ func TestClientNotify(t *testing.T) {
 	}
 	notify <- time.Time{}
 
-	if !clientHasOneEvent(c1) {
+	if !clientHasOne(c1) {
 		t.Fatalf("client 1 did not get exactly one event")
 	}
-	if !clientHasOneEvent(c2) {
+	if !clientHasOne(c2) {
 		t.Fatalf("client 2 did not get exactly one event")
 	}
 }
@@ -77,21 +77,20 @@ func mockDebounceNotify(
 	return
 }
 
-// clientHasOneEvent checks that a client has exactly one event
-// in its Events channel.
-func clientHasOneEvent(c *Client) bool {
-	// Client.notify() purposefully makes it asynchronous for the watcher,
+// clientHasOne checks that a client has exactly one value in its channel.
+func clientHasOne(c *Client) bool {
+	// Client.Notify() purposefully makes it asynchronous for the watcher,
 	// and it will ignore notifications when a previous notification has not
 	// been consumed yet. So the checking here is not perfect.
 	for {
 		select {
-		case <-c.Events:
-			// Received 1 event. Now ensure that there are 0 left.
-			// This is not allowing for more events to come in slowly,
-			// which is not ideal, but I don't want the test to wait
-			// around for something that shouldn't ever happen.
+		case <-c.C:
+			// Received 1. Now ensure that there are 0 left. This is not
+			// allowing for more to come in slowly, which is not ideal,
+			// but I don't want the test to wait around for something
+			// that shouldn't ever happen.
 			select {
-			case <-c.Events:
+			case <-c.C:
 				return false
 			default:
 				return true

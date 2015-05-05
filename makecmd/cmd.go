@@ -2,9 +2,11 @@ package makecmd
 
 import (
 	"bytes"
+	"log"
 	"os/exec"
 	"time"
 
+	"github.com/raymondbutcher/remake/colors"
 	"github.com/raymondbutcher/remake/makedb"
 )
 
@@ -13,7 +15,6 @@ import (
 type Cmd struct {
 	Target      string
 	cmd         *CmdProcess
-	cmdArgs     []string
 	queryArgs   []string
 	db          *makedb.Database
 	progressed  time.Time
@@ -23,22 +24,23 @@ type Cmd struct {
 
 // NewCmd initializes a make command.
 func NewCmd(target string) *Cmd {
-	mc := Cmd{
-		cmdArgs: []string{
-			"--warn-undefined-variables",
-		},
-		queryArgs: []string{
-			"--warn-undefined-variables",
-			"--question",
-			"--print-data-base",
-		},
+	cmdArgs := []string{
+		"--warn-undefined-variables",
+	}
+	queryArgs := []string{
+		"--warn-undefined-variables",
+		"--question",
+		"--print-data-base",
 	}
 	if len(target) != 0 {
-		mc.Target = target
-		mc.cmdArgs = append(mc.cmdArgs, target)
-		mc.queryArgs = append(mc.queryArgs, target)
+		cmdArgs = append(cmdArgs, target)
+		queryArgs = append(queryArgs, target)
 	}
-	return &mc
+	return &Cmd{
+		Target:    target,
+		cmd:       NewCmdProcess("make", cmdArgs...),
+		queryArgs: queryArgs,
+	}
 }
 
 // GetFiles gets the filenames of the command's target and its dependencies.
@@ -62,13 +64,6 @@ func (mc *Cmd) GetFiles() (names []string) {
 		add(mc.db.GetTarget(name))
 	}
 	return
-}
-
-// Finished returns a channel that can receive an exit error, indicating
-// that the make command process has exited. A nil error means it exited
-// without error.
-func (mc *Cmd) Finished() chan error {
-	return mc.cmd.Finished()
 }
 
 // HasChanged checks if the make command's target has changed since Progress()
@@ -132,11 +127,6 @@ func (mc *Cmd) HasChanged() bool {
 	return false
 }
 
-// Kill the command and wait for it to finish.
-func (mc *Cmd) Kill() error {
-	return mc.cmd.Kill()
-}
-
 // UpdateProgress checks how many targets need updating, and stores
 // the result. It also updates the internal time to be used by HasChanged.
 func (mc *Cmd) UpdateProgress() {
@@ -155,12 +145,6 @@ func (mc *Cmd) CheckProgress() (remaining int) {
 	return mc.remaining
 }
 
-// Start the make command process.
-func (mc *Cmd) Start() error {
-	mc.cmd = NewCmdProcess("make", mc.cmdArgs...)
-	return mc.cmd.Start()
-}
-
 // String returns the underlying make command that gets run.
 func (mc *Cmd) String() string {
 	return mc.cmd.String()
@@ -175,7 +159,7 @@ func (mc *Cmd) getDatabase() *makedb.Database {
 	db := makedb.NewDatabase()
 	err := db.Populate(r)
 	if err != nil {
-		panic(err)
+		log.Fatalf("getDatabase for %s: %s", mc.queryArgs, err)
 	}
 	mc.db = &db
 	return &db
@@ -206,4 +190,17 @@ func (mc *Cmd) getRemaining() (count int) {
 		}
 	}
 	return
+}
+
+// mustKill tries to kill the command and waits for it to finish.
+// It will keep trying if there is a problem.
+func (mc *Cmd) mustKill() {
+	for {
+		if err := mc.cmd.Kill(); err != nil {
+			log.Printf(colors.Red("Remake: Error killing %s: %s"), mc, err)
+			time.Sleep(1 * time.Second)
+		} else {
+			return
+		}
+	}
 }

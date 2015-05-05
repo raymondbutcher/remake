@@ -23,12 +23,11 @@ func (c *CmdProcess) Start() error {
 	c.runningMutex.Lock()
 	defer c.runningMutex.Unlock()
 
-	c.exitWait.Add(1)
-
 	if err := c.cmd.Start(); err != nil {
 		return err
 	}
 
+	c.exitWait.Add(1)
 	c.running = true
 
 	// Use a goroutine to wait for the process to exit,

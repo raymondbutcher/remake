@@ -70,7 +70,7 @@ func SendReadySignal() (err error) {
 	processID := os.Getpid()
 	processName, err := getProcessName(processID)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("getProcessName %d: %s", processID, err)
 	}
 
 	// Search for an ancestor process with the same name as this one. In other
@@ -82,14 +82,14 @@ func SendReadySignal() (err error) {
 		}
 		name, err := getProcessName(parentID)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("getProcessName %d: %s", parentID, err)
 		}
 		if name == processName {
 			break
 		}
 		parentID, err = getParentID(parentID)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("getParentID: %d", parentID)
 		}
 	}
 
@@ -102,7 +102,7 @@ func SendReadySignal() (err error) {
 	}
 
 	if err := p.Signal(syscall.SIGUSR1); err != nil {
-		panic(err)
+		return fmt.Errorf("p.Signal: %s", err)
 	}
 
 	return nil

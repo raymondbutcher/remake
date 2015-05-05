@@ -1,4 +1,4 @@
-package uqueue
+package makedb
 
 import (
 	"strings"

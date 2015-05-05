@@ -3,8 +3,6 @@ package makedb
 import (
 	"fmt"
 	"io"
-
-	"github.com/raymondbutcher/remake/uqueue"
 )
 
 // A Database represents a Make database.
@@ -50,12 +48,12 @@ func (db *Database) GetDeps(targetName string) (normal []string, orderOnly []str
 		panic(fmt.Sprintf("Target '%s' not found", targetName))
 	}
 
-	nq := uqueue.NewUniqueQueue()
+	nq := NewUniqueQueue()
 	for _, name := range target.NormalPrerequisites {
 		nq.Push(name)
 	}
 
-	oq := uqueue.NewUniqueQueue()
+	oq := NewUniqueQueue()
 	for _, name := range target.OrderOnlyPrerequisites {
 		oq.Push(name)
 	}
