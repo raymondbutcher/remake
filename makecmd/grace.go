@@ -93,7 +93,7 @@ func (cmd *Cmd) StartGraceMode(
 			if done, progressed := progress.check(); done {
 				// Valid scenario that gets here: a long-running-process
 				// phony target, already up to date, doesn't use the
-				// "remake -ready" signal, polling disabled.
+				// "remake -ready" signal, checking disabled. (but that is not possible now!)
 				return nil
 			} else if progressed {
 				continue
