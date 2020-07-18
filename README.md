@@ -25,10 +25,12 @@ There are 2 scenarios:
 
 * OSX/Linux/Unix?
 * Make
-    * Tested with GNU Make 3.81 i386-apple-darwin11.3.0
+    * Tested with:
+      * GNU Make 4.1 (Ubuntu 18.04)
+      * GNU Make 4.2.1 (Debian 10 WSL2)
 * Go
     * Only required because no binary releases have been created yet.
-    * Tested with go1.4.1 darwin/amd64
+    * Tested with go1.14.4 linux/amd64
 
 ## Installation
 
@@ -57,8 +59,7 @@ Displays the available command line options.
 
 Usage: `remake -check=2s [target]`
 
-Setting the check interval will change how often Remake checks for changes.
-The default interval is `2s`.
+This controls how often Remake checks for changes. The default interval is `2s`.
 
 ### Grace period
 
