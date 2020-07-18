@@ -9,15 +9,11 @@ remake: $(SRC_FILES)
 clean:
 	$(foreach name, $(wildcard remake),rm -r $(name);)
 
-install: remake
-	go install
-
 test: $(SRC_FILES)
 	go test ./...
 
 testv: $(SRC_FILES)
 	go test ./... -v
-
 
 SLEEP=sleep 1
 

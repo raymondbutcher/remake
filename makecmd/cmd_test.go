@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/raymondbutcher/remake/makedb"
+	"../makedb"
 )
 
 func TestGetFiles(t *testing.T) {

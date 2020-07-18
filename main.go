@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/raymondbutcher/remake/colors"
-	"github.com/raymondbutcher/remake/fswatch"
-	"github.com/raymondbutcher/remake/makecmd"
+	"./colors"
+	"./fswatch"
+	"./makecmd"
 )
 
 const (
