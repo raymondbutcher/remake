@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/raymondbutcher/remake/colors"
-	"github.com/raymondbutcher/remake/makedb"
+	"../colors"
+	"../makedb"
 )
 
 // Cmd is used to manage a make command, its running process,
