@@ -56,7 +56,7 @@ func (t *Target) PopulateNames(line []byte) error {
 	}
 
 	if len(t.Name) == 0 {
-		return fmt.Errorf("Unable to parse line: %s", line)
+		return fmt.Errorf("unable to parse line: %s", line)
 	}
 
 	return nil
@@ -99,7 +99,7 @@ func (t *Target) Populate(s string) error {
 	return nil
 }
 
-func (t Target) String() string {
+func (t *Target) String() string {
 	status := "ok"
 	if t.Phony {
 		status = "phony"

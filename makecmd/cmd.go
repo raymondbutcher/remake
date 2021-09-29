@@ -67,8 +67,8 @@ func (mc *Cmd) GetFiles() (names []string) {
 }
 
 // HasChanged checks if the make command's target has changed since Progress()
-// was last called. It is subtle, but Progress should be used during "grace
-// mode" to find out when the make command has finished building itself
+// was last called. It is subtle, but UpdateProgress should be used during
+// "grace mode" to find out when the make command has finished building itself
 // and its dependencies. Afterwards, HasChanged should be used to check
 // if the command should be restarted due to new changes.
 func (mc *Cmd) HasChanged() bool {
@@ -80,51 +80,7 @@ func (mc *Cmd) HasChanged() bool {
 		mc.usedChanged = true
 	}
 
-	db := mc.getDatabase()
-	t := db.GetTarget(mc.Target)
-
-	var checkTimes bool
-
-	if t.Phony {
-		// A phony target, according to Make rules, always needs updating.
-		// This does not work with the way that Remake waits for changes.
-		// For phony targets, Remake will only check their dependencies.
-		// However, phony dependencies will be checked.
-
-		// Anyway, to know when to update a phony target, it is necessary
-		// to compare the times of its dependencies againt when the make
-		// command was started.
-		checkTimes = true
-	} else {
-		// Real file targets (non-phony) can be checked directly,
-		// and don't need to have the file times checked.
-		if t.DoesNotExist || t.NeedsUpdate {
-			return true
-		}
-		checkTimes = false
-	}
-
-	nDeps, oDeps := db.GetDeps(t.Name)
-
-	for _, name := range nDeps {
-		dep := db.GetTarget(name)
-		if dep.DoesNotExist || dep.NeedsUpdate {
-			return true
-		} else if checkTimes {
-			if dep.LastModified.After(mc.progressed) {
-				return true
-			}
-		}
-	}
-
-	for _, name := range oDeps {
-		dep := db.GetTarget(name)
-		if dep.DoesNotExist {
-			return true
-		}
-	}
-
-	return false
+	return mc.getRemaining() > 0
 }
 
 // UpdateProgress checks how many targets need updating, and stores
@@ -165,31 +121,10 @@ func (mc *Cmd) getDatabase() *makedb.Database {
 	return &db
 }
 
-// getRemaining counts how many targets need to be updated
+// getRemaining returns the number of targets that need to be updated
 // for this make command's target to be considered up to date.
 func (mc *Cmd) getRemaining() (count int) {
-	db := mc.getDatabase()
-	t := db.GetTarget(mc.Target)
-	if !t.Phony {
-		// Real file targets (non-phony) can be checked directly.
-		if t.DoesNotExist || t.NeedsUpdate {
-			count++
-		}
-	}
-	nDeps, oDeps := db.GetDeps(t.Name)
-	for _, name := range nDeps {
-		dep := db.GetTarget(name)
-		if dep.DoesNotExist || dep.NeedsUpdate {
-			count++
-		}
-	}
-	for _, name := range oDeps {
-		dep := db.GetTarget(name)
-		if dep.DoesNotExist {
-			count++
-		}
-	}
-	return
+	return mc.getDatabase().GetPendingTargets(mc.Target, mc.progressed)
 }
 
 // mustKill tries to kill the command and waits for it to finish.

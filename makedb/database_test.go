@@ -74,13 +74,13 @@ func query(db Database, targetName string) (ok bool) {
 	nDeps, oDeps := db.GetDeps(targetName)
 	for _, name := range nDeps {
 		t := db.GetTarget(name)
-		if t.DoesNotExist || t.NeedsUpdate {
+		if !t.Phony && (t.DoesNotExist || t.NeedsUpdate) {
 			return false
 		}
 	}
 	for _, name := range oDeps {
 		t := db.GetTarget(name)
-		if t.DoesNotExist {
+		if !t.Phony && t.DoesNotExist {
 			return false
 		}
 	}
@@ -91,6 +91,12 @@ func targetIsMissing(db Database, t *Target) bool {
 	// Target does not exist, needs update.
 	ok := query(db, t.Name)
 	return !ok && t.DoesNotExist && t.NeedsUpdate
+}
+
+func targetIsPhony(db Database, t *Target) bool {
+	// Target does not exist because it is phony.
+	ok := query(db, t.Name)
+	return ok && t.DoesNotExist && !t.NeedsUpdate && t.Phony
 }
 
 func targetNeedsUpdate(db Database, t *Target) bool {
@@ -121,8 +127,8 @@ func (a TargetAssertions) Check() error {
 		if !checkFunc(db, t) {
 			ok := query(db, t.Name)
 			return fmt.Errorf(
-				"\nTarget: %s\nOK: %v\nDoesNotExist: %v\nNeedsUpdate: %v",
-				t.Name, ok, t.DoesNotExist, t.NeedsUpdate,
+				"\nTarget: %s\nOK: %v\nDoesNotExist: %v\nNeedsUpdate: %v\nPhony: %v",
+				t.Name, ok, t.DoesNotExist, t.NeedsUpdate, t.Phony,
 			)
 		}
 	}
@@ -245,4 +251,14 @@ func TestMakeFileTargets(t *testing.T) {
 		t.Error(err)
 	}
 
+}
+
+func TestPhony(t *testing.T) {
+	tests := TargetAssertions{
+		"phony1": targetIsPhony,
+		"phony2": targetIsPhony,
+	}
+	if err := tests.Check(); err != nil {
+		t.Error(err)
+	}
 }

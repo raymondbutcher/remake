@@ -3,6 +3,7 @@ package makedb
 import (
 	"fmt"
 	"io"
+	"time"
 )
 
 // A Database represents a Make database.
@@ -97,5 +98,54 @@ func (db *Database) GetTarget(name string) (t *Target) {
 	if len(t.Name) == 0 {
 		panic(fmt.Sprintf("Target '%s' not found", name))
 	}
+	return
+}
+
+func (db *Database) GetPendingTargets(target string, since time.Time) (count int) {
+	// For the specified target, return the number of targets (including itself
+	// and its dependencies) that are missing or need to be updated.
+
+	t := db.GetTarget(target)
+
+	// Check the specified target.
+	if !t.Phony && (t.DoesNotExist || t.NeedsUpdate) {
+		count++
+	}
+
+	nDeps, oDeps := db.GetDeps(t.Name)
+
+	// Phony targets, according to the Make database, always needs updating.
+	// This does not work with the way that Remake waits for changes.
+	// For phony targets, Remake will only check their dependencies
+	// and restart when real file targets (non-phony) dependencies
+	// have changed.
+	foundNewer := false
+
+	// Check the target's normal prerequisites.
+	for _, name := range nDeps {
+		dep := db.GetTarget(name)
+		if !dep.Phony {
+			if dep.DoesNotExist || dep.NeedsUpdate {
+				count++
+			} else if t.Phony && dep.LastModified.After(since) {
+				foundNewer = true
+			}
+		}
+	}
+
+	if foundNewer {
+		count++
+	}
+
+	// Check the target's order-only prerequisites.
+	// This type only needs to exist (if it's not a phony target).
+
+	for _, name := range oDeps {
+		dep := db.GetTarget(name)
+		if !dep.Phony && dep.DoesNotExist {
+			count++
+		}
+	}
+
 	return
 }

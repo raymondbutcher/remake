@@ -1,10 +1,9 @@
 SRC_FILES:=$(shell find . -type f -path '*.go')
 
 .PHONY: all
-all: fmt test
+all: fmt test remake
 
 remake: $(SRC_FILES)
-	go fmt ./...
 	go build
 	./remake -ready
 

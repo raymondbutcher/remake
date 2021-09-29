@@ -20,15 +20,15 @@ type progressChecker struct {
 	remaining int
 }
 
-func newProgressChecker(cmd *Cmd, gracePeriod time.Duration) progressChecker {
-	return progressChecker{
-		stalled: time.After(gracePeriod),
-		cmd:     cmd,
-		grace:   gracePeriod,
-	}
+func newProgressChecker(cmd *Cmd, gracePeriod time.Duration) *progressChecker {
+	pc := new(progressChecker)
+	pc.stalled = time.After(gracePeriod)
+	pc.cmd = cmd
+	pc.grace = gracePeriod
+	return pc
 }
 
-func (pc progressChecker) check() (done, progressing bool) {
+func (pc *progressChecker) check() (done, progressing bool) {
 	pc.cmd.UpdateProgress()
 	rem := pc.cmd.CheckProgress()
 	done = (rem == 0)
@@ -40,7 +40,7 @@ func (pc progressChecker) check() (done, progressing bool) {
 	return
 }
 
-func (pc progressChecker) extendGraceMode() {
+func (pc *progressChecker) extendGraceMode() {
 	pc.stalled = time.After(pc.grace)
 }
 
@@ -57,7 +57,7 @@ func (cmd *Cmd) StartGraceMode(
 	defer buildMutex.Unlock()
 
 	if err := cmd.cmd.Start(); err != nil {
-		return fmt.Errorf("Error starting %s: %s", cmd, err)
+		return fmt.Errorf("error starting %s: %s", cmd, err)
 	}
 
 	// Keep track of whether the make command is making progress, or if it
