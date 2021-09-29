@@ -53,6 +53,13 @@ Usage: `remake -h` or `remake -help`
 
 Displays the available command line options.
 
+### Check interval
+
+Usage: `remake -check=2s [target]`
+
+Setting the check interval will change how often Remake checks for changes.
+The default interval is `2s`.
+
 ### Grace period
 
 Usage: `remake -grace=10s [target]`
@@ -70,14 +77,6 @@ During the grace period, Remake will regularly check to see if
 everything is up to date yet. As soon as it is, normal monitoring
 begins. If the grace period is exceeded, and the command is still
 running, then it will be restarted.
-
-### Poll interval
-
-Usage: `remake -poll=0s [target]`
-
-Setting a poll interval will force Remake to check for changes using a
-timer. The default behavior is to only use filesystem events (see
-`remake -watch`). Both options can be used simultaneously.
 
 ### Ready signal
 
@@ -113,17 +112,3 @@ bin/myapp: $(wildcard src/myapp/*.go)
 Note: The ready signal has no effect when Remake is running multiple targets,
 because it cannot tell which command sent the signal. The grace period will
 work as normal.
-
-### Watch filesystem
-
-Usage: `remake -watch=500ms`
-
-Remake watches the filesystem for any changes. When it sees changes, it then
-checks if the Make target needs updating. If it does, then it runs the make
-command.
-
-The `-watch` value is the time to wait, after filesystem events,
-before checking for changes. You may know this as debouncing.
-
-Watching can be disabled in favor of `remake -poll=10s` for example,
-if for some reason the filesystem events are not suitable.
