@@ -7,7 +7,7 @@ remake: $(SRC_FILES)
 	./remake -ready
 
 clean:
-	$(foreach name, $(wildcard remake),rm -r $(name);)
+	$(foreach name, $(wildcard remake slow*),rm -r $(name);)
 
 test: $(SRC_FILES)
 	go test ./...
