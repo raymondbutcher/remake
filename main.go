@@ -13,12 +13,14 @@ import (
 
 const (
 	errorSleep = 5 * time.Second
+	version    = "0.1.0"
 )
 
 var (
 	checkInterval time.Duration
 	gracePeriod   time.Duration
 	readyMode     bool
+	versionMode   bool
 )
 
 func main() {
@@ -41,12 +43,23 @@ func main() {
 		false,
 		"Send a ready signal and then quit",
 	)
+	flag.BoolVar(
+		&versionMode,
+		"version",
+		false,
+		"Display the version and then quit",
+	)
 
 	flag.Parse()
 
 	if checkInterval <= 0 {
 		fmt.Fprintln(os.Stderr, "-check must be non-zero.")
 		os.Exit(1)
+	}
+
+	if versionMode {
+		fmt.Println(version)
+		os.Exit(0)
 	}
 
 	// Handle when there are no targets in the command line arguments.
