@@ -4,17 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
 
 var (
-	doesNotExist       = []byte("#  File does not exist.")
-	lastModified       = []byte("#  Last modified ")
+	doesNotExist       = regexp.MustCompile(`#\s+File does not exist\.`)
+	lastModified       = regexp.MustCompile(`#\s+Last modified\s+(.+)`)
 	lastModifiedFormat = "2006-01-02 15:04:05"
-	needsUpdate        = []byte("#  Needs to be updated (-q is set).")
-	notTarget          = []byte("# Not a target:")
-	phonyTarget        = []byte("#  Phony target (prerequisite of .PHONY).")
+	needsUpdate        = regexp.MustCompile(`#\s+Needs to be updated \(-q is set\)\.`)
+	notTarget          = regexp.MustCompile(`#\s+Not a target:`)
+	phonyTarget        = regexp.MustCompile(`#\s+Phony target \(prerequisite of \.PHONY\)\.`)
 )
 
 // A Target represents a Makefile target.
@@ -67,20 +68,20 @@ func (t *Target) Populate(s string) error {
 	scanner := bufio.NewScanner(strings.NewReader(s))
 	for scanner.Scan() {
 		line := scanner.Bytes()
-		if bytes.Equal(line, notTarget) {
+		if notTarget.Match(line) {
 			t.NotTarget = true
 		} else if len(t.Name) == 0 {
 			if err := t.PopulateNames(line); err != nil {
 				return err
 			}
-		} else if bytes.Equal(line, phonyTarget) {
+		} else if phonyTarget.Match(line) {
 			t.Phony = true
-		} else if bytes.Equal(line, needsUpdate) {
+		} else if needsUpdate.Match(line) {
 			t.NeedsUpdate = true
-		} else if bytes.Equal(line, doesNotExist) {
+		} else if doesNotExist.Match(line) {
 			t.DoesNotExist = true
-		} else if bytes.HasPrefix(line, lastModified) {
-			s := string(line[len(lastModified):])
+		} else if matches := lastModified.FindSubmatch(line); matches != nil {
+			s := string(matches[1])
 			if s == "1970-01-01 00:59:56" {
 				panic(fmt.Sprintf("%s: %s", t.String(), line))
 			} else {
