@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"./colors"
-	"./makecmd"
+	"github.com/raymondbutcher/remake/colors"
+	"github.com/raymondbutcher/remake/makecmd"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	checkInterval  time.Duration
+	checkInterval time.Duration
 	gracePeriod   time.Duration
 	readyMode     bool
 )

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"../makedb"
+	"github.com/raymondbutcher/remake/makedb"
 )
 
 func TestGetFiles(t *testing.T) {
@@ -12,15 +12,15 @@ func TestGetFiles(t *testing.T) {
 		db: &makedb.Database{
 			DefaultGoal: "t1",
 			Targets: map[string]*makedb.Target{
-				"t1": &makedb.Target{
+				"t1": {
 					Name:                "t1",
 					NormalPrerequisites: []string{"t2"},
 				},
-				"t2": &makedb.Target{
-					Name: "t2",
+				"t2": {
+					Name:                   "t2",
 					OrderOnlyPrerequisites: []string{"t3"},
 				},
-				"t3": &makedb.Target{
+				"t3": {
 					Name: "t3",
 				},
 			},
