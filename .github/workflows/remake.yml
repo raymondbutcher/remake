@@ -36,12 +36,6 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: test
-    strategy:
-      matrix:
-        goosarch:
-          - 'darwin/amd64'
-          - 'darwin/arm64'
-          - 'linux/amd64'
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -51,20 +45,16 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Get matrix options
-        run: |
-          GOOSARCH=${{  matrix.goosarch }}
-          GOOS=${GOOSARCH%/*}
-          GOARCH=${GOOSARCH#*/}
-          BINARY_NAME=${{ github.repository }}-$GOOS-$GOARCH
-          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
-          echo "GOOS=$GOOS" >> $GITHUB_ENV
-          echo "GOARCH=$GOARCH" >> $GITHUB_ENV
-        shell: bash
       - name: Build
-        run: go build -o "$BINARY_NAME" -v
+        run: |
+          GOOS=darwin GOARCH=amd64 go build -o remake-darwin-amd64 -v
+          GOOS=darwin GOARCH=arm64 go build -o remake-darwin-arm64 -v
+          GOOS=linux GOARCH=amd64 go build -o remake-linux-amd64 -v
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          files: ${{ env.BINARY_NAME }}
+          files: |
+            remake-darwin-amd64
+            remake-darwin-arm64
+            remake-linux-amd64
