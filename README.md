@@ -37,7 +37,7 @@ There are 2 scenarios:
 It is not worth releasing binaries at this early stage.
 So, for now, it must be built and installed using Go.
 
-    $ go get github.com/raymondbutcher/remake
+    $ go install github.com/raymondbutcher/remake@latest
 
 ## Usage
 
