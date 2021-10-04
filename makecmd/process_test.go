@@ -4,7 +4,9 @@ import "testing"
 
 func ExampleCmdProcess() {
 	cmd := NewCmdProcess("echo", "hello from echo")
-	cmd.Start()
+	if err := cmd.Start(); err != nil {
+		// handle err
+	}
 	<-cmd.Finished()
 	// Output: hello from echo
 }
