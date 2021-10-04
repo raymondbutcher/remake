@@ -28,16 +28,16 @@ There are 2 scenarios:
     * Tested with:
       * GNU Make 4.1 (Ubuntu 18.04)
       * GNU Make 4.2.1 (Debian 10 WSL2)
-* Go
-    * Only required because no binary releases have been created yet.
-    * Tested with go1.14.4 linux/amd64
 
 ## Installation
 
-It is not worth releasing binaries at this early stage.
-So, for now, it must be built and installed using Go.
+Download the relevant version from the [releases](https://github.com/raymondbutcher/remake/releases) page, add it to your `$PATH`, and make it executable.
 
-    $ go install github.com/raymondbutcher/remake@latest
+Example:
+
+    wget https://github.com/raymondbutcher/remake/releases/download/v0.1.0/remake-linux-amd64
+    sudo mv remake-linux-amd64 /usr/local/bin/remake
+    chmod u+x /usr/local/bin/remake
 
 ## Usage
 
